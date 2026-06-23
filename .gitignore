@@ -1,0 +1,38 @@
+# Internal working docs (not part of the deliverable repo)
+W-ignore-Docs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+
+# Node / frontend
+node_modules/
+dist/
+build/
+.vite/
+*.local
+
+# Databases & data (generated locally by ingestion)
+*.db
+*.sqlite
+*.sqlite3
+*.parquet
+backend/**/data/
+data/
+images/
+
+# Env & secrets
+.env
+*.env
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
