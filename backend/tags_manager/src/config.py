@@ -1,0 +1,21 @@
+"""Configuration for the tags service (read from environment)."""
+import os
+
+from shared_libraries.env import get_env, get_env_int
+
+SERVICE_NAME = "tags"
+HOST = get_env("TAGS_SERVICE_HOST", "0.0.0.0")
+PORT = get_env_int("TAGS_SERVICE_PORT", 8000)
+
+DATA_DIR = get_env("DATA_DIR", "/data")
+DB_PATH = get_env("TAGS_DB_PATH", os.path.join(DATA_DIR, "tags.db"))
+
+# Direct service-to-service URLs (no gateway hop).
+USERS_SERVICE_URL = get_env("USERS_SERVICE_URL", "http://users:8000")
+FILES_SERVICE_URL = get_env("FILES_SERVICE_URL", "http://files:8000")
+
+DEFAULT_PAGE_SIZE = get_env_int("TAGS_DEFAULT_PAGE_SIZE", 50)
+MAX_PAGE_SIZE = get_env_int("TAGS_MAX_PAGE_SIZE", 200)
+
+# Max ids per call to files/list (mirrors the files service MAX_PAGE_SIZE).
+FILES_PAGE_LIMIT = get_env_int("FILES_PAGE_LIMIT", 200)
