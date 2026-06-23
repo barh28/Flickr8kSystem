@@ -1,0 +1,96 @@
+# One-command stack: `docker compose up --build`.
+#
+# Flow:
+#   1. `init` runs once: downloads Flickr8k, fills the files DB + images volume,
+#      then exits 0 (idempotent: a marker file skips a completed load).
+#   2. `files` starts only after `init` completes successfully.
+#   3. `users`, `tags`, and the `gateway` come up; the gateway is the single
+#      public entry point on http://localhost:8080.
+#
+# Data lives in local bind-mounted folders under ./data so it is easy to inspect
+# directly from the IDE/Finder and survives restarts (the init step is not
+# repeated). Delete ./data to force a completely fresh ingest.
+
+services:
+  init:
+    build:
+      context: ./backend
+      dockerfile: init_loader/Dockerfile
+    environment:
+      DATA_DIR: /data
+      FILES_DB_PATH: /data/files.db
+      IMAGES_DIR: /images
+      DEFAULT_DATASET: Flickr8k
+      # Set INGEST_MAX_PER_SPLIT to a small number for a quick partial load.
+    volumes:
+      - ./data/files:/data
+      - ./data/images:/images
+    restart: "no"
+
+  users:
+    build:
+      context: ./backend
+      dockerfile: user_manager/Dockerfile
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - ./data/users:/data
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  files:
+    build:
+      context: ./backend
+      dockerfile: files_manager/Dockerfile
+    environment:
+      DATA_DIR: /data
+      FILES_DB_PATH: /data/files.db
+      IMAGES_DIR: /images
+      DEFAULT_DATASET: Flickr8k
+    volumes:
+      - ./data/files:/data
+      - ./data/images:/images:ro
+    expose:
+      - "8000"
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  tags:
+    build:
+      context: ./backend
+      dockerfile: tags_manager/Dockerfile
+    environment:
+      DATA_DIR: /data
+      USERS_SERVICE_URL: http://users:8000
+      FILES_SERVICE_URL: http://files:8000
+    volumes:
+      - ./data/tags:/data
+    expose:
+      - "8000"
+    depends_on:
+      - users
+      - files
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: ./backend
+      dockerfile: api_gateway/Dockerfile
+    environment:
+      IMAGES_DIR: /images
+      USERS_SERVICE_URL: http://users:8000
+      FILES_SERVICE_URL: http://files:8000
+      TAGS_SERVICE_URL: http://tags:8000
+      CORS_ORIGINS: "*"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data/images:/images:ro
+    depends_on:
+      - users
+      - files
+      - tags
+    restart: unless-stopped
