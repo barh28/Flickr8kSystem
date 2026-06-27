@@ -17,5 +17,10 @@ FILES_SERVICE_URL = get_env("FILES_SERVICE_URL", "http://files:8000")
 DEFAULT_PAGE_SIZE = get_env_int("TAGS_DEFAULT_PAGE_SIZE", 50)
 MAX_PAGE_SIZE = get_env_int("TAGS_MAX_PAGE_SIZE", 200)
 
+# Public base URL of the gateway, used to build absolute (publicly fetchable)
+# image URLs in exports. The images themselves are public static assets; only
+# user tag data is access-controlled. Override per-deployment.
+PUBLIC_BASE_URL = get_env("PUBLIC_BASE_URL", "http://localhost:8080").rstrip("/")
+
 # Max ids per call to files/list (mirrors the files service MAX_PAGE_SIZE).
 FILES_PAGE_LIMIT = get_env_int("FILES_PAGE_LIMIT", 200)

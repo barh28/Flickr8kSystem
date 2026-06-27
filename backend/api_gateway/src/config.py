@@ -22,5 +22,12 @@ REGISTRY = {
 
 PROXY_TIMEOUT = float(get_env("PROXY_TIMEOUT", "30"))
 
+# (service, action) pairs reachable without a token. Everything else requires a
+# valid Bearer token, from which the gateway injects a trusted X-User-Id.
+PUBLIC_ENDPOINTS = {
+    ("users", "create"),
+    ("users", "login"),
+}
+
 _CORS_RAW = get_env("CORS_ORIGINS", "*")
 CORS_ORIGINS = ["*"] if _CORS_RAW == "*" else [origin.strip() for origin in _CORS_RAW.split(",") if origin.strip()]

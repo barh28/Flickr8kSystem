@@ -8,7 +8,12 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query
 
 from src.config import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
-from src.schemas.files_schema import FileItem, FileListResponse, OptionsResponse
+from src.schemas.files_schema import (
+    FileItem,
+    FileListResponse,
+    OptionsResponse,
+    StatsResponse,
+)
 from src.services import files_manager
 
 router = APIRouter()
@@ -29,8 +34,10 @@ def list_files(
     split: Optional[str] = None,
     orientation: Optional[str] = Query(None, pattern="^(portrait|landscape|square)$"),
     agreement: Optional[str] = Query(None, pattern="^(high|low)$"),
+    min_agreement: Optional[float] = Query(None, ge=0, le=1),
     sort: str = Query("id", pattern="^(id|length|agreement|random)$"),
     ids: Optional[List[str]] = Query(None),
+    or_ids: Optional[List[str]] = Query(None),
 ) -> FileListResponse:
     filters = {
         "q": q,
@@ -39,7 +46,9 @@ def list_files(
         "split": split,
         "orientation": orientation,
         "agreement": agreement,
+        "min_agreement": min_agreement,
         "ids": ids,
+        "or_ids": or_ids,
     }
     return files_manager.list_files(filters, sort, page, page_size)
 
@@ -55,3 +64,8 @@ def get_file(id: str = Query(..., min_length=1)) -> FileItem:
 @router.get("/options", response_model=OptionsResponse)
 def options() -> OptionsResponse:
     return files_manager.get_options()
+
+
+@router.get("/stats", response_model=StatsResponse)
+def stats(dataset: Optional[str] = None) -> StatsResponse:
+    return files_manager.get_stats(dataset)

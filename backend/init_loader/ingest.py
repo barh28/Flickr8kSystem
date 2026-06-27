@@ -30,8 +30,9 @@ from PIL import Image
 
 from shared_libraries.env import get_env, get_env_int
 from src.config import DATA_DIR, DEFAULT_DATASET, IMAGES_DIR
-from src.db.connection import init_db
-from src.services import files_manager
+from src.db import db_operations
+from src.db.connection import get_connection, init_db
+from src.services import derive, files_manager
 
 # Auto-converted parquet copies served by the HF datasets-server.
 PARQUET_BASE = get_env(
@@ -118,6 +119,36 @@ def _ingest_parquet(path: str, split: str, seen: set) -> int:
     return added
 
 
+def recompute() -> None:
+    """Recompute derived fields (caption_length, agreement) over existing rows.
+
+    Lets us roll out a smarter agreement formula without re-downloading the
+    dataset. Reads each row's captions from the DB and updates in place.
+    """
+    init_db()
+    conn = get_connection()
+    try:
+        rows = db_operations.all_caption_rows(conn)
+        updated = 0
+        for row in rows:
+            captions = [row[col] for col in CAPTION_COLUMNS
+                        if row[col] is not None and row[col] != ""]
+            db_operations.update_derived(
+                conn,
+                row["id"],
+                derive.compute_caption_length(captions),
+                derive.compute_agreement(captions),
+            )
+            updated += 1
+            if updated % 1000 == 0:
+                conn.commit()
+                print(f"  recomputed {updated} rows", flush=True)
+        conn.commit()
+        print(f"Recompute complete: {updated} rows updated.", flush=True)
+    finally:
+        conn.close()
+
+
 def main() -> None:
     if os.path.exists(MARKER_PATH):
         print(f"Ingestion already complete (marker {MARKER_PATH}); skipping.", flush=True)
@@ -149,4 +180,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1 and sys.argv[1] == "recompute":
+        recompute()
+    else:
+        main()

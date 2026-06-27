@@ -59,6 +59,21 @@ def insert_file(conn: sqlite3.Connection, record: dict) -> None:
     conn.commit()
 
 
+def all_caption_rows(conn: sqlite3.Connection) -> list:
+    """Every row's id + captions, for recomputing derived fields in place."""
+    return conn.execute(
+        "SELECT id, caption_0, caption_1, caption_2, caption_3, caption_4 FROM files"
+    ).fetchall()
+
+
+def update_derived(conn: sqlite3.Connection, file_id: str,
+                   caption_length: int, agreement: float) -> None:
+    conn.execute(
+        "UPDATE files SET caption_length = ?, agreement = ? WHERE id = ?",
+        (caption_length, agreement, file_id),
+    )
+
+
 def _build_where(filters: dict) -> tuple:
     clauses = []
     params = []
@@ -67,8 +82,18 @@ def _build_where(filters: dict) -> tuple:
     if query_text:
         match_expr = _fts_query(query_text)
         if match_expr:
-            clauses.append("id IN (SELECT file_id FROM files_fts WHERE files_fts MATCH ?)")
-            params.append(match_expr)
+            fts_clause = "id IN (SELECT file_id FROM files_fts WHERE files_fts MATCH ?)"
+            # or_ids lets a caller widen the text match to an extra id set (e.g. the
+            # user's own labels matching the same text), so search = captions OR labels.
+            or_ids = filters.get("or_ids")
+            if or_ids:
+                placeholders = ",".join("?" for _ in or_ids)
+                clauses.append(f"({fts_clause} OR id IN ({placeholders}))")
+                params.append(match_expr)
+                params.extend(or_ids)
+            else:
+                clauses.append(fts_clause)
+                params.append(match_expr)
 
     ids = filters.get("ids")
     if ids:
@@ -110,6 +135,12 @@ def _build_where(filters: dict) -> tuple:
         clauses.append("agreement < ?")
         params.append(AGREEMENT_HIGH_THRESHOLD)
 
+    # Numeric agreement threshold (0..1); keeps samples with at least this score.
+    min_agreement = filters.get("min_agreement")
+    if min_agreement is not None:
+        clauses.append("agreement >= ?")
+        params.append(min_agreement)
+
     where = ""
     if clauses:
         where = "WHERE " + " AND ".join(clauses)
@@ -136,6 +167,89 @@ def list_files(conn: sqlite3.Connection, filters: dict, sort: str, page: int, pa
 
 def get_file(conn: sqlite3.Connection, file_id: str) -> Optional[sqlite3.Row]:
     return conn.execute("SELECT * FROM files WHERE id = ?", (file_id,)).fetchone()
+
+
+def get_stats(conn: sqlite3.Connection, dataset: Optional[str] = None) -> dict:
+    """Dataset-wide distributions for the statistics dashboard.
+
+    All distributions use a uniform {label, count} shape so the frontend can
+    render them with one bar-chart component.
+    """
+    where = ""
+    base_params: list = []
+    if dataset:
+        where = "WHERE dataset = ?"
+        base_params = [dataset]
+
+    total = conn.execute(f"SELECT COUNT(*) AS c FROM files {where}", base_params).fetchone()["c"]
+
+    splits = conn.execute(
+        f"SELECT split AS label, COUNT(*) AS count FROM files {where} GROUP BY split ORDER BY split",
+        base_params,
+    ).fetchall()
+    orientations = conn.execute(
+        f"SELECT orientation AS label, COUNT(*) AS count FROM files {where} "
+        "GROUP BY orientation ORDER BY orientation",
+        base_params,
+    ).fetchall()
+
+    length_agg = conn.execute(
+        f"SELECT MIN(caption_length) AS mn, MAX(caption_length) AS mx, AVG(caption_length) AS av "
+        f"FROM files {where}",
+        base_params,
+    ).fetchone()
+    length_buckets = conn.execute(
+        f"""
+        SELECT
+            SUM(CASE WHEN caption_length <= ? THEN 1 ELSE 0 END) AS short,
+            SUM(CASE WHEN caption_length > ? AND caption_length <= ? THEN 1 ELSE 0 END) AS medium,
+            SUM(CASE WHEN caption_length > ? THEN 1 ELSE 0 END) AS long
+        FROM files {where}
+        """,
+        [SHORT_MAX_WORDS, SHORT_MAX_WORDS, MEDIUM_MAX_WORDS, MEDIUM_MAX_WORDS] + base_params,
+    ).fetchone()
+
+    agreement_agg = conn.execute(
+        f"SELECT AVG(agreement) AS av FROM files {where}", base_params
+    ).fetchone()
+    agreement_buckets = conn.execute(
+        f"""
+        SELECT
+            SUM(CASE WHEN agreement < 0.2 THEN 1 ELSE 0 END) AS b0,
+            SUM(CASE WHEN agreement >= 0.2 AND agreement < 0.4 THEN 1 ELSE 0 END) AS b1,
+            SUM(CASE WHEN agreement >= 0.4 AND agreement < 0.6 THEN 1 ELSE 0 END) AS b2,
+            SUM(CASE WHEN agreement >= 0.6 AND agreement < 0.8 THEN 1 ELSE 0 END) AS b3,
+            SUM(CASE WHEN agreement >= 0.8 THEN 1 ELSE 0 END) AS b4
+        FROM files {where}
+        """,
+        base_params,
+    ).fetchone()
+
+    return {
+        "total": total,
+        "by_split": [{"label": r["label"], "count": r["count"]} for r in splits],
+        "by_orientation": [{"label": r["label"], "count": r["count"]} for r in orientations],
+        "caption_length": {
+            "min": length_agg["mn"] or 0,
+            "max": length_agg["mx"] or 0,
+            "avg": round(length_agg["av"] or 0, 2),
+            "buckets": [
+                {"label": "short", "count": length_buckets["short"] or 0},
+                {"label": "medium", "count": length_buckets["medium"] or 0},
+                {"label": "long", "count": length_buckets["long"] or 0},
+            ],
+        },
+        "agreement": {
+            "avg": round(agreement_agg["av"] or 0, 3),
+            "buckets": [
+                {"label": "0–20%", "count": agreement_buckets["b0"] or 0},
+                {"label": "20–40%", "count": agreement_buckets["b1"] or 0},
+                {"label": "40–60%", "count": agreement_buckets["b2"] or 0},
+                {"label": "60–80%", "count": agreement_buckets["b3"] or 0},
+                {"label": "80–100%", "count": agreement_buckets["b4"] or 0},
+            ],
+        },
+    }
 
 
 def get_options(conn: sqlite3.Connection) -> dict:

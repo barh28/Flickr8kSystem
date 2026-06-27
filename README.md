@@ -51,7 +51,7 @@ single `docker compose up`.
 |------------|-------|---------|------------------------|
 | `gateway`  | 8080  | ✅ yes  | Single entry point. Generic reverse proxy to all services + serves image files statically. Handles CORS. |
 | `frontend` | 5173  | ✅ yes  | React UI: gallery, search bar, filters, image detail view, tagging (pass/fail), export. Talks only to the gateway. |
-| `users`    | 8000  | internal| Lightweight identity (username → user id). No passwords/sessions — just "who is tagging". |
+| `users`    | 8000  | internal| Lightweight registration: username + password, where only a salted password **hash** is stored (never the plaintext). Returns a stable user id used for tagging. |
 | `files`    | 8000  | internal| Dataset metadata: captions + derived fields (caption length, orientation, annotator agreement). Rich filtering, full-text search (FTS5), sorting, pagination. Read-only over HTTP. |
 | `tags`     | 8000  | internal| Per-user tagging (pass/fail) of files. Orchestrates the gallery (`/query` = files + the user's tags), and exports tagged subsets (CSV/JSON). |
 | `init`     | —     | one-shot| Downloads Flickr8k parquet shards, writes each image once to the images volume, and fills `files.db` through the files data layer. Idempotent; exits 0 when done. |
@@ -61,21 +61,47 @@ single `docker compose up`.
 | Service | Action | Method | Purpose |
 |---------|--------|--------|---------|
 | users   | `/health` | GET | Liveness |
-| users   | `/create` | POST | Get-or-create a user by username |
-| users   | `/get`    | GET (`?id=`) | Fetch a user |
+| users   | `/create` | POST | Register with `{username, password}` (password stored hashed); returns a **token**, or `400` if the username already exists. **Public** (no token needed) |
+| users   | `/login`  | POST | Authenticate `{username, password}` → **token** (`401` on mismatch). **Public** (no token needed) |
+| users   | `/get`    | GET (`?id=`) | Fetch a user — only your **own** record (the requested `id` must match the token's user; otherwise `403`) |
 | files   | `/health` | GET | Liveness |
 | files   | `/list`   | GET | Filter/search/sort/paginate files (`q, dataset, split, length, orientation, agreement, sort, page, page_size, ids`) |
 | files   | `/get`    | GET (`?id=`) | One file with all metadata |
 | files   | `/options`| GET | Available filter values (datasets, splits, orientations, caption-length bounds) |
 | tags    | `/health` | GET | Liveness |
-| tags    | `/set`    | POST | Tag files as `passed`/`failed` for a user |
-| tags    | `/remove` | POST | Remove tags for a user |
-| tags    | `/query`  | GET | Gallery for a user: files + their tag status (same filters as files `/list`, plus `status`) |
-| tags    | `/export` | GET (`?format=csv\|json`) | Download the user's tagged subset |
+| tags    | `/set`    | POST | Tag files as `passed`/`failed` (user taken from the token, not the body) |
+| tags    | `/remove` | POST | Remove the user's tags |
+| tags    | `/query`  | GET | Gallery for the current user: files + their tag status (same filters as files `/list`, plus `status`) |
+| tags    | `/export` | GET (`?format=csv\|json`) | Download the current user's tagged subset |
 | gateway | `/health` | GET | Liveness + list of registered services |
 | gateway | `/images/{file_id}` | GET | Static image bytes |
 
 > Example: the frontend calls `GET http://localhost:8080/api/files/list?split=train&length=short`.
+
+---
+
+## Authentication (token-based, gateway-enforced)
+
+A lightweight, **stateless** token (a mini-JWT) mimics a real auth flow without
+sessions or a token store:
+
+1. **Get a token** — `POST /api/users/create` (register) or `POST /api/users/login`
+   returns `{user_id, username, token}`. The token is `base64(payload).HMAC_SHA256(payload, AUTH_SECRET)`
+   where the payload holds `user_id`, `username`, and an expiry (`exp`).
+2. **Use it** — the frontend sends `Authorization: Bearer <token>` on every call.
+3. **Gateway enforces + identifies** — for any endpoint that isn't public
+   (everything except `users/create` and `users/login`), the gateway verifies the
+   token's signature/expiry. On success it **injects a trusted `X-User-Id`
+   header** to the upstream service; on failure it returns `401`.
+4. **Anti-spoofing** — the gateway always strips any client-supplied
+   `Authorization` / `X-User-Id` / `X-Username` headers before proxying, so a
+   client can never claim another user's id. Downstream services trust
+   `X-User-Id` precisely because only the gateway can set it.
+5. **Per-user isolation** — the `tags` service derives the user **only** from
+   `X-User-Id`, so every tag read/write/export is scoped to the caller's own data.
+
+> The signing secret (`AUTH_SECRET`) must be identical in the `users` and
+> `gateway` services. In `docker-compose.yml` it is shared via a YAML anchor.
 
 ---
 
@@ -95,6 +121,7 @@ All variables have sensible defaults (shown below); override them in `docker-com
 | `TAGS_SERVICE_URL` | `http://tags:8000` | Registry entry for the tags service |
 | `PROXY_TIMEOUT` | `30` | Upstream request timeout (seconds) |
 | `CORS_ORIGINS` | `*` | Allowed origins (comma-separated, or `*`) |
+| `AUTH_SECRET` | `dev-insecure-secret-change-me` | HMAC secret for verifying tokens (**must match `users`**) |
 
 ### frontend
 | Variable | Default | Meaning |
@@ -108,6 +135,8 @@ All variables have sensible defaults (shown below); override them in `docker-com
 | `USER_SERVICE_PORT` | `8000` | Internal port |
 | `DATA_DIR` | `/data` | Base data dir |
 | `USER_DB_PATH` | `/data/users.db` | SQLite file path |
+| `AUTH_SECRET` | `dev-insecure-secret-change-me` | HMAC secret for signing tokens (**must match `gateway`**) |
+| `AUTH_TOKEN_TTL_SECONDS` | `86400` | Token lifetime in seconds |
 
 ### files
 | Variable | Default | Meaning |

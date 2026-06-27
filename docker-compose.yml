@@ -5,11 +5,17 @@
 #      then exits 0 (idempotent: a marker file skips a completed load).
 #   2. `files` starts only after `init` completes successfully.
 #   3. `users`, `tags`, and the `gateway` come up; the gateway is the single
-#      public entry point on http://localhost:8080.
+#      public API entry point on http://localhost:8080.
+#   4. `frontend` (React, served by nginx) comes up on http://localhost:5173.
 #
 # Data lives in local bind-mounted folders under ./data so it is easy to inspect
 # directly from the IDE/Finder and survives restarts (the init step is not
 # repeated). Delete ./data to force a completely fresh ingest.
+
+# Shared HMAC secret used to sign/verify auth tokens. The users service mints
+# tokens with it and the gateway verifies them, so it MUST be identical in both.
+# (Demo value — override via an env file / secret in a real deployment.)
+x-auth-secret: &auth_secret "change-me-in-production-please"
 
 services:
   init:
@@ -33,6 +39,8 @@ services:
       dockerfile: user_manager/Dockerfile
     environment:
       DATA_DIR: /data
+      AUTH_SECRET: *auth_secret
+      AUTH_TOKEN_TTL_SECONDS: "86400"
     volumes:
       - ./data/users:/data
     expose:
@@ -66,6 +74,8 @@ services:
       DATA_DIR: /data
       USERS_SERVICE_URL: http://users:8000
       FILES_SERVICE_URL: http://files:8000
+      # Public gateway URL used to build absolute image URLs in exports.
+      PUBLIC_BASE_URL: http://localhost:8080
     volumes:
       - ./data/tags:/data
     expose:
@@ -85,6 +95,7 @@ services:
       FILES_SERVICE_URL: http://files:8000
       TAGS_SERVICE_URL: http://tags:8000
       CORS_ORIGINS: "*"
+      AUTH_SECRET: *auth_secret
     ports:
       - "8080:8080"
     volumes:
@@ -93,4 +104,16 @@ services:
       - users
       - files
       - tags
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Browser-facing gateway URL (host port), baked into the static bundle.
+        VITE_API_BASE_URL: http://localhost:8080
+    ports:
+      - "5173:80"
+    depends_on:
+      - gateway
     restart: unless-stopped

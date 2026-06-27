@@ -57,6 +57,14 @@ def get_options() -> dict:
         conn.close()
 
 
+def get_stats(dataset: Optional[str] = None) -> dict:
+    conn = get_connection()
+    try:
+        return db_operations.get_stats(conn, dataset)
+    finally:
+        conn.close()
+
+
 def add_file(file_id: str, split: str, width: int, height: int,
              captions: List[str], image_path: str,
              dataset: Optional[str] = None) -> None:

@@ -13,6 +13,18 @@ CREATE TABLE IF NOT EXISTS tags (
     PRIMARY KEY (user_id, file_id)
 );
 CREATE INDEX IF NOT EXISTS idx_tags_user_status ON tags(user_id, status);
+
+-- Free-form, per-user labels ("people", "dogs", ...). A file can carry many
+-- labels for a user; labels are stored normalized (trimmed + lowercased).
+CREATE TABLE IF NOT EXISTS labels (
+    user_id    TEXT NOT NULL,
+    file_id    TEXT NOT NULL,
+    label      TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, file_id, label)
+);
+CREATE INDEX IF NOT EXISTS idx_labels_user_label ON labels(user_id, label);
+CREATE INDEX IF NOT EXISTS idx_labels_user_file ON labels(user_id, file_id);
 """
 
 

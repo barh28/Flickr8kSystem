@@ -34,3 +34,28 @@ class OptionsResponse(BaseModel):
     splits: List[str]
     orientations: List[str]
     word_count: WordCount
+
+
+class Bucket(BaseModel):
+    label: str
+    count: int
+
+
+class LengthStats(BaseModel):
+    min: int
+    max: int
+    avg: float
+    buckets: List[Bucket]
+
+
+class AgreementStats(BaseModel):
+    avg: float
+    buckets: List[Bucket]
+
+
+class StatsResponse(BaseModel):
+    total: int
+    by_split: List[Bucket]
+    by_orientation: List[Bucket]
+    caption_length: LengthStats
+    agreement: AgreementStats
