@@ -3,12 +3,11 @@ FROM node:22-alpine AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-# Prefer a reproducible install from the lock file. npm's lock file does not
-# always record the optional, platform-specific native deps (e.g. rollup/oxlint
-# binaries, @emnapi/*) for every OS/CPU, so `npm ci` can fail on a machine whose
-# architecture differs from where the lock was generated. Fall back to a plain
-# install in that case so the image builds on any computer (amd64 or arm64).
-RUN npm ci || (echo "npm ci failed (lock not in sync for this platform); falling back to npm install" && npm install)
+# Plain install: resolves and installs deps, reconciling the lock file as needed.
+# Unlike `npm ci` it never hard-fails when the lock omits platform-specific
+# native deps (rollup/oxlint binaries, @emnapi/*), so the image builds on any
+# computer (amd64 or arm64).
+RUN npm install
 
 COPY . .
 
