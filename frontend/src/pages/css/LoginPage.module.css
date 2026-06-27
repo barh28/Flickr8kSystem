@@ -1,0 +1,139 @@
+.wrapper {
+  position: relative;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-5);
+  background: radial-gradient(
+      1200px 600px at 50% -10%,
+      var(--color-primary-soft),
+      transparent
+    ),
+    var(--color-bg);
+}
+
+.topRight {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+}
+
+/* 3D flip scene */
+.scene {
+  width: 100%;
+  max-width: 440px;
+  perspective: 1600px;
+}
+
+.card {
+  position: relative;
+  min-height: 500px;
+  transform-style: preserve-3d;
+  transition: transform 0.65s cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+
+.flipped {
+  transform: rotateY(180deg);
+}
+
+.face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-8) var(--space-6);
+}
+
+.back {
+  transform: rotateY(180deg);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.logo {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--color-primary), #8a5cff);
+}
+
+.title {
+  font-size: 1.35rem;
+}
+
+.subtitle {
+  color: var(--color-text-muted);
+  font-size: 0.92rem;
+  margin: var(--space-2) 0 var(--space-5);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fieldError {
+  color: var(--color-danger);
+  font-size: 0.78rem;
+}
+
+.switch {
+  margin-top: var(--space-5);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.switchButton {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+.switchButton:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+  .wrapper {
+    padding: var(--space-4);
+  }
+  .scene {
+    max-width: 100%;
+  }
+  .face {
+    padding: var(--space-6) var(--space-5);
+  }
+  .card {
+    min-height: 480px;
+  }
+}
+
+/* Respect users who prefer reduced motion: skip the flip animation. */
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+}

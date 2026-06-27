@@ -1,0 +1,313 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  /* Stretch to fill the main flex column so the image fills the height and the
+     info panel scrolls internally instead of the whole page. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.position {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  min-width: 80px;
+  text-align: center;
+}
+
+.content {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: stretch;
+}
+
+@media (max-width: 820px) {
+  /* Narrow screens: stack and let the whole page scroll normally. */
+  .page {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+  .content {
+    grid-template-columns: 1fr;
+    flex: 0 0 auto;
+  }
+  .panel {
+    overflow: visible;
+  }
+  .image {
+    max-height: 70vh;
+  }
+}
+
+.imageWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  min-height: 0;
+}
+
+.image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: var(--space-2);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sectionTitle {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.metaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+}
+
+.metaLabel {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}
+
+.metaValue {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text);
+  text-transform: capitalize;
+}
+
+.captions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  counter-reset: caption;
+}
+
+.caption {
+  display: flex;
+  gap: var(--space-3);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--color-text);
+}
+
+.caption::before {
+  counter-increment: caption;
+  content: counter(caption);
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: var(--color-surface-2);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.tagRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.tagBadge {
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background-color: var(--color-surface-2);
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+}
+
+.tagBadge.passed {
+  background-color: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.tagBadge.failed {
+  background-color: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.tagActions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.tagBtn {
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface-2);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.tagBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tagBtn:not(:disabled):hover {
+  border-color: var(--color-primary);
+}
+
+.pass {
+  color: var(--color-success);
+}
+
+.fail {
+  color: var(--color-danger);
+}
+
+.activePass {
+  background-color: var(--color-success);
+  color: #fff;
+  border-color: transparent;
+}
+
+.activeFail {
+  background-color: var(--color-danger);
+  color: #fff;
+  border-color: transparent;
+}
+
+.labelChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.muted {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.labelChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 4px 6px 4px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.labelRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background-color: var(--color-border);
+  color: var(--color-text);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.labelRemove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.labelAdd {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.labelInput {
+  flex: 1;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 0.9rem;
+}
+
+.labelInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-4);
+  color: var(--color-text-muted);
+}

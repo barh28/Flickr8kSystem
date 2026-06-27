@@ -1,0 +1,85 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  /* Compact on laptops so the filters fit; roomy on large screens. */
+  gap: var(--space-2-5);
+}
+
+@media (min-width: 1801px) {
+  .panel {
+    gap: var(--space-5);
+  }
+}
+
+.title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: calc(-1 * var(--space-1));
+}
+
+.labels {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2-5);
+}
+
+.labelsTitle {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface-2);
+  color: var(--color-text);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.chip:hover {
+  border-color: var(--color-primary);
+}
+
+.chipActive {
+  background-color: var(--color-primary);
+  border-color: transparent;
+  color: var(--color-primary-contrast, #fff);
+}
+
+.chipCount {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.showMore {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.showMore:hover {
+  text-decoration: underline;
+}
+
+.clear {
+  margin-top: var(--space-2);
+}

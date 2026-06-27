@@ -1,0 +1,268 @@
+.page {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  /* Desktop: fill the viewport-locked main area, no page scroll. */
+  overflow: hidden;
+}
+
+.state,
+.error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  padding: var(--space-6) 0;
+}
+
+.error {
+  color: var(--color-danger);
+}
+
+/* --- Metric strip --------------------------------------------------------- */
+.metrics {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-3);
+}
+
+.metric {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+.metricDot {
+  width: 10px;
+  height: 38px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.metricBody {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.metricValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.1;
+}
+
+.metricLabel {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- Cards grid (fills remaining height) ---------------------------------- */
+.grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: var(--space-3);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 16px);
+  background-color: var(--color-surface);
+  overflow: hidden;
+}
+
+.cardTitle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text);
+  flex: 0 0 auto;
+}
+
+.cardHint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+/* --- Donut ---------------------------------------------------------------- */
+.donutWrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.donut {
+  flex: 0 0 auto;
+  max-height: 100%;
+}
+
+.donutTotal {
+  font-size: 1.4rem;
+  font-weight: 700;
+  fill: var(--color-text);
+}
+
+.donutCaption {
+  font-size: 0.62rem;
+  fill: var(--color-text-muted);
+}
+
+.legend {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.82rem;
+}
+
+.legendDot {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+
+.legendLabel {
+  color: var(--color-text);
+  text-transform: capitalize;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legendValue {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Area / line graph ---------------------------------------------------- */
+.graph {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+
+.graphSvg {
+  width: 100%;
+  height: 100%;
+}
+
+.graphGrid {
+  stroke: var(--color-border);
+  stroke-dasharray: 3 4;
+  opacity: 0.6;
+}
+
+.graphAxis {
+  stroke: var(--color-border);
+}
+
+.graphValue {
+  font-size: 9px;
+  font-weight: 700;
+  fill: var(--color-text);
+}
+
+.graphLabel {
+  font-size: 9px;
+  fill: var(--color-text-muted);
+}
+
+/* --- Colored bars --------------------------------------------------------- */
+.bars {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+
+.barRow {
+  display: grid;
+  grid-template-columns: 90px 1fr 52px;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.barLabel {
+  font-size: 0.8rem;
+  color: var(--color-text);
+  text-transform: capitalize;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.barTrack {
+  height: 10px;
+  background-color: var(--color-surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  min-width: 2px;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.barValue {
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+/* --- Responsive ----------------------------------------------------------- */
+@media (max-width: 1100px) {
+  .page {
+    overflow-y: auto;
+  }
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: none;
+    grid-auto-rows: minmax(220px, auto);
+  }
+  .metrics {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

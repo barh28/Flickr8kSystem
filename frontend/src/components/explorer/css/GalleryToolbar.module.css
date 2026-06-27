@@ -1,0 +1,120 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+
+.group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.info {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  margin-right: var(--space-1);
+}
+
+.count {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.divider {
+  width: 1px;
+  align-self: stretch;
+  background-color: var(--color-border);
+  margin: 0 var(--space-1);
+}
+
+.toggle {
+  display: flex;
+  background-color: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+
+.toggleBtn {
+  background: none;
+  border: none;
+  border-radius: calc(var(--radius-sm) - 2px);
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.toggleActive {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn {
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface-2);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.labelInput {
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  width: 130px;
+}
+
+.labelInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn:not(:disabled):hover {
+  border-color: var(--color-primary);
+}
+
+.primary {
+  background-color: var(--color-primary);
+  color: var(--color-primary-contrast, #fff);
+  border-color: transparent;
+}
+
+.primary:not(:disabled):hover {
+  border-color: transparent;
+  filter: brightness(0.95);
+}
+
+.pass {
+  background-color: var(--color-success-soft);
+  color: var(--color-success);
+  border-color: transparent;
+}
+
+.fail {
+  background-color: var(--color-danger-soft);
+  color: var(--color-danger);
+  border-color: transparent;
+}
