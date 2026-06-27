@@ -28,6 +28,7 @@ services:
       IMAGES_DIR: /images
       DEFAULT_DATASET: Flickr8k
       # Set INGEST_MAX_PER_SPLIT to a small number for a quick partial load.
+      # INGEST_MAX_PER_SPLIT: 50
     volumes:
       - ./data/files:/data
       - ./data/images:/images
