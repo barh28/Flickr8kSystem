@@ -13,6 +13,11 @@ DB_PATH = get_env("TAGS_DB_PATH", os.path.join(DATA_DIR, "tags.db"))
 # Direct service-to-service URLs (no gateway hop).
 USERS_SERVICE_URL = get_env("USERS_SERVICE_URL", "http://users:8000")
 FILES_SERVICE_URL = get_env("FILES_SERVICE_URL", "http://files:8000")
+CLIP_SERVICE_URL = get_env("CLIP_SERVICE_URL", "http://clip:8000")
+
+# How many top semantic matches the CLIP service returns before facet/tag
+# filters are applied on top. Bounds the candidate set for meaning search.
+CLIP_CANDIDATES = get_env_int("CLIP_CANDIDATES", 500)
 
 DEFAULT_PAGE_SIZE = get_env_int("TAGS_DEFAULT_PAGE_SIZE", 50)
 MAX_PAGE_SIZE = get_env_int("TAGS_MAX_PAGE_SIZE", 200)

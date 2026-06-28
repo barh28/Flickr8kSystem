@@ -102,6 +102,7 @@ def query(
     min_agreement: Optional[float] = Query(None, ge=0, le=1),
     labels: Optional[List[str]] = Query(None),
     sort: str = Query("id", pattern="^(id|length|agreement|random)$"),
+    search_mode: str = Query("keyword", pattern="^(keyword|meaning)$"),
 ) -> QueryResponse:
     file_filters = {
         "q": q,
@@ -112,7 +113,15 @@ def query(
         "agreement": agreement,
         "min_agreement": min_agreement,
     }
-    return tags_manager.query(user_id, status, labels, file_filters, sort, page, page_size)
+    try:
+        return tags_manager.query(
+            user_id, status, labels, file_filters, sort, page, page_size, search_mode
+        )
+    except tags_manager.SemanticUnavailable:
+        raise HTTPException(
+            status_code=503,
+            detail="Semantic index is still building; try again shortly.",
+        )
 
 
 def _download(content: str, media_type: str, filename: str) -> Response:
@@ -219,6 +228,7 @@ def export_filtered(
     labels: Optional[List[str]] = Query(None),
     format: str = Query("json", pattern="^(json|jsonl|csv)$"),
     purpose: str = Query("report", pattern="^(report|training)$"),
+    search_mode: str = Query("keyword", pattern="^(keyword|meaning)$"),
 ) -> Response:
     file_filters = {
         "q": q,
@@ -229,7 +239,13 @@ def export_filtered(
         "agreement": agreement,
         "min_agreement": min_agreement,
     }
-    records = tags_manager.export_filtered(user_id, file_filters, status, labels)
+    try:
+        records = tags_manager.export_filtered(user_id, file_filters, status, labels, search_mode)
+    except tags_manager.SemanticUnavailable:
+        raise HTTPException(
+            status_code=503,
+            detail="Semantic index is still building; try again shortly.",
+        )
     prefix = "training" if purpose == "training" else "files"
     stem = f"{prefix}_{split}" if split else f"{prefix}_filtered"
     return _export_response(records, format, stem, purpose)

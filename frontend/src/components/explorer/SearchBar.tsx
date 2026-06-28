@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import type { SearchMode } from "../../api/tags";
 import styles from "./css/SearchBar.module.css";
 
 const DEBOUNCE_MS = 350;
@@ -7,7 +8,20 @@ const DEBOUNCE_MS = 350;
 interface SearchBarProps {
   value: string;
   onSearch: (query: string) => void;
+  mode: SearchMode;
+  onModeChange: (mode: SearchMode) => void;
 }
+
+const MODE_COPY: Record<SearchMode, { label: string; placeholder: string }> = {
+  keyword: {
+    label: "Search captions",
+    placeholder: "e.g. a dog running on the beach",
+  },
+  meaning: {
+    label: "Search by meaning",
+    placeholder: "e.g. a child playing happily in water",
+  },
+};
 
 function SearchIcon() {
   return (
@@ -29,9 +43,15 @@ function SearchIcon() {
   );
 }
 
+const MODES: { value: SearchMode; label: string }[] = [
+  { value: "keyword", label: "Keyword" },
+  { value: "meaning", label: "Meaning" },
+];
+
 // Debounced text search. Keeps a local value for snappy typing and only pushes
-// the committed query upward (to the URL) after the user pauses.
-export default function SearchBar({ value, onSearch }: SearchBarProps) {
+// the committed query upward (to the URL) after the user pauses. A mode toggle
+// switches between caption keyword search and CLIP semantic ("meaning") search.
+export default function SearchBar({ value, onSearch, mode, onModeChange }: SearchBarProps) {
   const [text, setText] = useState(value);
   const timer = useRef<number | undefined>(undefined);
 
@@ -48,22 +68,45 @@ export default function SearchBar({ value, onSearch }: SearchBarProps) {
     timer.current = window.setTimeout(() => onSearch(next), DEBOUNCE_MS);
   }
 
+  const copy = MODE_COPY[mode];
+
   return (
     <div className={styles.field}>
-      <label className={styles.label} htmlFor="gallery-search">
-        Search captions
-      </label>
+      <div className={styles.labelRow}>
+        <label className={styles.label} htmlFor="gallery-search">
+          {copy.label}
+        </label>
+        <div className={styles.modes} role="group" aria-label="Search mode">
+          {MODES.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={`${styles.mode} ${option.value === mode ? styles.modeActive : ""}`}
+              aria-pressed={option.value === mode}
+              onClick={() => onModeChange(option.value)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className={styles.wrap}>
         <SearchIcon />
         <input
           id="gallery-search"
           type="search"
           className={styles.input}
-          placeholder="e.g. a dog running on the beach"
+          placeholder={copy.placeholder}
           value={text}
           onChange={(event) => handleChange(event.target.value)}
         />
       </div>
+      {mode === "meaning" && (
+        <p className={styles.hint}>
+          Matches images by visual meaning, not exact caption words. Only strong
+          similarities are shown.
+        </p>
+      )}
     </div>
   );
 }

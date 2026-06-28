@@ -7,9 +7,14 @@ import type { FileListResponse, LabelOption, TagStatus } from "../types";
 import { ApiError, api } from "./client";
 import type { FileQueryParams } from "./files";
 
+export type SearchMode = "keyword" | "meaning";
+
 export interface GalleryParams extends FileQueryParams {
   status?: TagStatus; // filter to only passed / failed
   labels?: string[]; // filter to files carrying any of these user labels
+  // "meaning" routes the text query through CLIP semantic search instead of
+  // caption keyword matching. Omitted/keyword keeps the default behaviour.
+  search_mode?: SearchMode;
 }
 
 export interface SetTagsResult {

@@ -20,6 +20,8 @@ export interface GalleryFilters {
   min_agreement: string;
   status: string;
   sort: string;
+  // "keyword" (caption match) or "meaning" (CLIP semantic search).
+  search_mode: string;
 }
 
 const LENGTH_OPTIONS: Segment[] = [
@@ -176,9 +178,10 @@ export default function FiltersPanel({
       />
 
       <Select
-        label="Sort by"
+        label={filters.search_mode === "meaning" ? "Sort by (relevance)" : "Sort by"}
         value={filters.sort}
         options={SORT_OPTIONS}
+        disabled={filters.search_mode === "meaning"}
         onChange={(event) => onChange("sort", event.target.value)}
       />
 

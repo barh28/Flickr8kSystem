@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { ApiError } from "../api/client";
 import type { CaptionLength, Orientation, SortKey } from "../api/files";
 import {
   addLabel,
@@ -12,7 +13,7 @@ import {
   removeTags,
   setTags,
 } from "../api/tags";
-import type { GalleryParams } from "../api/tags";
+import type { GalleryParams, SearchMode } from "../api/tags";
 import Button from "../components/common/Button";
 import Spinner from "../components/common/Spinner";
 import BulkTagModal from "../components/explorer/BulkTagModal";
@@ -57,12 +58,16 @@ export default function ExplorerPage() {
     min_agreement: searchParams.get("min_agreement") ?? "",
     status: searchParams.get("status") ?? "",
     sort: searchParams.get("sort") ?? "id",
+    search_mode: searchParams.get("search_mode") ?? "keyword",
   };
+
+  const searchMode: SearchMode = filters.search_mode === "meaning" ? "meaning" : "keyword";
 
   // Labels are multi-valued, so they live as repeated ?labels= params.
   const selectedLabels = searchParams.getAll("labels");
 
   const hasActiveFilters =
+    searchMode === "meaning" ||
     selectedLabels.length > 0 ||
     FILTER_KEYS.some((key) => key !== "sort" && filters[key] !== "");
 
@@ -93,9 +98,12 @@ export default function ExplorerPage() {
       const next = new URLSearchParams(prev);
       for (const key of FILTER_KEYS) next.delete(key);
       next.delete("labels");
+      next.delete("search_mode");
       return next;
     });
   }
+
+  const meaningWithoutQuery = searchMode === "meaning" && !filters.q.trim();
 
   const params: Omit<GalleryParams, "page"> = {
     page_size: DEFAULT_PAGE_SIZE,
@@ -108,6 +116,7 @@ export default function ExplorerPage() {
     status: (filters.status || undefined) as TagStatus | undefined,
     labels: selectedLabels.length > 0 ? selectedLabels : undefined,
     sort: filters.sort as SortKey,
+    search_mode: searchMode === "meaning" ? "meaning" : undefined,
   };
 
   const { data: labelOptions } = useQuery({
@@ -119,10 +128,16 @@ export default function ExplorerPage() {
     data,
     isLoading,
     isError,
+    error,
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
-  } = useInfiniteFiles(params);
+  } = useInfiniteFiles(params, { enabled: !meaningWithoutQuery });
+
+  // The CLIP service answers 503 while it is still building its image index on
+  // first boot; show a friendlier, retryable message in that case.
+  const indexBuilding =
+    isError && error instanceof ApiError && error.status === 503;
 
   const items = data?.pages.flatMap((p) => p.items) ?? [];
   const total = data?.pages[0]?.total ?? 0;
@@ -216,6 +231,7 @@ export default function ExplorerPage() {
           min_agreement: params.min_agreement,
           status: params.status,
           labels: params.labels,
+          search_mode: params.search_mode,
         },
         format,
         purpose,
@@ -268,7 +284,14 @@ export default function ExplorerPage() {
         <div className={styles.stickyBar}>
           <div className={styles.galleryHeader}>
             <div className={styles.search}>
-              <SearchBar value={filters.q} onSearch={(query) => setFilter("q", query)} />
+              <SearchBar
+                value={filters.q}
+                onSearch={(query) => setFilter("q", query)}
+                mode={searchMode}
+                onModeChange={(mode) =>
+                  setFilter("search_mode", mode === "meaning" ? "meaning" : "")
+                }
+              />
             </div>
             <div className={styles.headerRight}>
               <span className={styles.count}>
@@ -297,9 +320,19 @@ export default function ExplorerPage() {
         </div>
 
         <div className={styles.scrollArea} ref={scrollRef}>
-          {isLoading ? (
+          {meaningWithoutQuery ? (
+            <div className={styles.state}>
+              Type a phrase above to search images by meaning (e.g. &ldquo;a child
+              playing in water&rdquo;).
+            </div>
+          ) : isLoading ? (
             <div className={styles.state}>
               <Spinner /> Loading gallery…
+            </div>
+          ) : indexBuilding ? (
+            <div className={styles.state}>
+              <Spinner /> Building the semantic search index… this runs once and
+              can take a few minutes. Try again shortly.
             </div>
           ) : isError ? (
             <div className={styles.error}>Couldn&apos;t load the gallery.</div>

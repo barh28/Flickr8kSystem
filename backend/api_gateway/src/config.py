@@ -18,6 +18,7 @@ REGISTRY = {
     "users": get_env("USERS_SERVICE_URL", "http://users:8000"),
     "files": get_env("FILES_SERVICE_URL", "http://files:8000"),
     "tags": get_env("TAGS_SERVICE_URL", "http://tags:8000"),
+    "clip": get_env("CLIP_SERVICE_URL", "http://clip:8000"),
 }
 
 PROXY_TIMEOUT = float(get_env("PROXY_TIMEOUT", "30"))

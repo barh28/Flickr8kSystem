@@ -4,8 +4,9 @@
 #   1. `init` runs once: downloads Flickr8k, fills the files DB + images volume,
 #      then exits 0 (idempotent: a marker file skips a completed load).
 #   2. `files` starts only after `init` completes successfully.
-#   3. `users`, `tags`, and the `gateway` come up; the gateway is the single
-#      public API entry point on http://localhost:8080.
+#   3. `users`, `tags`, `clip`, and the `gateway` come up; the gateway is the
+#      single public API entry point on http://localhost:8080. `clip` builds a
+#      semantic-search index from the images on its first boot (cached after).
 #   4. `frontend` (React, served by nginx) comes up on http://localhost:5173.
 #
 # Data lives in local bind-mounted folders under ./data so it is easy to inspect
@@ -75,6 +76,7 @@ services:
       DATA_DIR: /data
       USERS_SERVICE_URL: http://users:8000
       FILES_SERVICE_URL: http://files:8000
+      CLIP_SERVICE_URL: http://clip:8000
       # Public gateway URL used to build absolute image URLs in exports.
       PUBLIC_BASE_URL: http://localhost:8080
     volumes:
@@ -84,6 +86,28 @@ services:
     depends_on:
       - users
       - files
+      - clip
+    restart: unless-stopped
+
+  # CLIP semantic ("meaning") search. On first boot it embeds every image once
+  # (a few minutes on CPU) and caches the vectors to ./data/clip; later boots
+  # load instantly. Model weights are baked into the image, so it needs no
+  # network at runtime. The tags service calls it to rank images by a query.
+  clip:
+    build:
+      context: ./backend
+      dockerfile: clip_search/Dockerfile
+    environment:
+      DATA_DIR: /data
+      IMAGES_DIR: /images
+    volumes:
+      - ./data/clip:/data
+      - ./data/images:/images:ro
+    expose:
+      - "8000"
+    depends_on:
+      init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   gateway:
@@ -95,6 +119,7 @@ services:
       USERS_SERVICE_URL: http://users:8000
       FILES_SERVICE_URL: http://files:8000
       TAGS_SERVICE_URL: http://tags:8000
+      CLIP_SERVICE_URL: http://clip:8000
       CORS_ORIGINS: "*"
       AUTH_SECRET: *auth_secret
     ports:
@@ -105,6 +130,7 @@ services:
       - users
       - files
       - tags
+      - clip
     restart: unless-stopped
 
   frontend:

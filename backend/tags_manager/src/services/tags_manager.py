@@ -6,10 +6,14 @@ and users services directly. Dependency direction is strictly tags -> files/user
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from src.config import FILES_PAGE_LIMIT, PUBLIC_BASE_URL
+from src.config import CLIP_CANDIDATES, FILES_PAGE_LIMIT, PUBLIC_BASE_URL
 from src.db import db_operations
 from src.db.connection import get_connection
 from src.services import clients
+
+
+class SemanticUnavailable(Exception):
+    """The CLIP service is reachable but its index is not ready yet."""
 
 
 def _chunks(items: List[str], size: int) -> List[List[str]]:
@@ -33,9 +37,18 @@ def _user_exists(user_id: str) -> bool:
 
 def _fetch_files_metadata(file_ids: List[str]) -> dict:
     """Return {id: file_item} for the given ids (chunked to respect page size)."""
+    return _fetch_filtered_metadata(file_ids, {})
+
+
+def _fetch_filtered_metadata(file_ids: List[str], facet_filters: dict) -> dict:
+    """Like _fetch_files_metadata but only keeps ids that also pass the given
+    facet filters (split / length / orientation / agreement / dataset). Used by
+    meaning search to apply the user's filters on top of semantic ranking."""
     metadata = {}
     for chunk in _chunks(file_ids, FILES_PAGE_LIMIT):
-        response = clients.files_client.get("list", params={"ids": chunk, "page_size": len(chunk)})
+        params = {"ids": chunk, "page_size": len(chunk)}
+        params.update(facet_filters)
+        response = clients.files_client.get("list", params=params)
         if response.status_code == 200:
             for item in response.json()["items"]:
                 metadata[item["id"]] = item
@@ -92,6 +105,21 @@ def remove_tags(user_id: str, file_ids: List[str]) -> dict:
     return {"removed": removed}
 
 
+def _restrict_ids(conn, user_id: str, status: Optional[str],
+                  labels: Optional[List[str]]) -> Optional[set]:
+    """The set of file ids the user's status/label filters allow, or None when
+    neither is set (meaning "no restriction"). An empty set means nothing can
+    match."""
+    restrict: Optional[set] = None
+    if status:
+        restrict = set(db_operations.get_file_ids(conn, user_id, status))
+    if labels:
+        normalized = [_norm_label(label) for label in labels if _norm_label(label)]
+        label_ids = set(db_operations.get_file_ids_by_labels(conn, user_id, normalized))
+        restrict = label_ids if restrict is None else (restrict & label_ids)
+    return restrict
+
+
 def _prepare_filters(conn, user_id: str, status: Optional[str],
                      labels: Optional[List[str]], file_filters: dict) -> tuple:
     """Inject per-user constraints onto the file filters.
@@ -104,14 +132,7 @@ def _prepare_filters(conn, user_id: str, status: Optional[str],
     """
     filters = dict(file_filters)
 
-    restrict: Optional[set] = None
-    if status:
-        restrict = set(db_operations.get_file_ids(conn, user_id, status))
-    if labels:
-        normalized = [_norm_label(label) for label in labels if _norm_label(label)]
-        label_ids = set(db_operations.get_file_ids_by_labels(conn, user_id, normalized))
-        restrict = label_ids if restrict is None else (restrict & label_ids)
-
+    restrict = _restrict_ids(conn, user_id, status, labels)
     if restrict is not None:
         if len(restrict) == 0:
             return filters, False
@@ -126,25 +147,86 @@ def _prepare_filters(conn, user_id: str, status: Optional[str],
     return filters, True
 
 
+def _clip_ranked_ids(query_text: str) -> List[str]:
+    """Ask the CLIP service for the most semantically similar image ids, best
+    first. Raises SemanticUnavailable if the index is still building."""
+    response = clients.clip_client.get(
+        "search", params={"q": query_text, "limit": CLIP_CANDIDATES}
+    )
+    if response.status_code == 503:
+        raise SemanticUnavailable()
+    if response.status_code != 200:
+        raise RuntimeError("clip service returned an error")
+    return [row["id"] for row in response.json()["results"]]
+
+
+def _meaning_candidates(conn, user_id: str, status: Optional[str],
+                        labels: Optional[List[str]], file_filters: dict) -> List[dict]:
+    """Resolve a meaning search into rank-ordered file items, with the user's
+    status/label restriction and facet filters applied on top of the ranking."""
+    query_text = (file_filters.get("q") or "").strip()
+    ranked_ids = _clip_ranked_ids(query_text)
+    if not ranked_ids:
+        return []
+
+    restrict = _restrict_ids(conn, user_id, status, labels)
+    if restrict is not None:
+        if len(restrict) == 0:
+            return []
+        candidate_ids = [file_id for file_id in ranked_ids if file_id in restrict]
+    else:
+        candidate_ids = ranked_ids
+
+    facet_filters = {
+        key: value for key, value in file_filters.items()
+        if key != "q" and value
+    }
+    metadata = _fetch_filtered_metadata(candidate_ids, facet_filters)
+    # candidate_ids is already in relevance order, so iterating it keeps rank.
+    return [metadata[file_id] for file_id in candidate_ids if file_id in metadata]
+
+
+def _annotate(conn, user_id: str, items: List[dict]) -> None:
+    """Attach the user's tag_status + labels to each item (in place)."""
+    page_ids = [item["id"] for item in items]
+    status_map = db_operations.get_status_map(conn, user_id, page_ids)
+    labels_map = db_operations.get_labels_map(conn, user_id, page_ids)
+    for item in items:
+        item["tag_status"] = status_map.get(item["id"])
+        item["labels"] = labels_map.get(item["id"], [])
+
+
 def query(user_id: str, status: Optional[str], labels: Optional[List[str]],
-          file_filters: dict, sort: str, page: int, page_size: int) -> dict:
+          file_filters: dict, sort: str, page: int, page_size: int,
+          search_mode: str = "keyword") -> dict:
     """Gallery orchestrator: filter (status/labels/text) + annotate with the
-    user's tag status and labels."""
+    user's tag status and labels.
+
+    In "meaning" mode the text query is resolved by the CLIP service into a
+    relevance-ranked candidate set, which is then filtered and paginated here
+    (sort is ignored — results are ordered by similarity).
+    """
     conn = get_connection()
     try:
+        if search_mode == "meaning" and (file_filters.get("q") or "").strip():
+            items = _meaning_candidates(conn, user_id, status, labels, file_filters)
+            start = (page - 1) * page_size
+            page_items = items[start:start + page_size]
+            _annotate(conn, user_id, page_items)
+            return {
+                "total": len(items),
+                "page": page,
+                "page_size": page_size,
+                "items": page_items,
+            }
+
         filters, has_candidates = _prepare_filters(conn, user_id, status, labels, file_filters)
         if not has_candidates:
             return {"total": 0, "page": page, "page_size": page_size, "items": []}
 
         params = _files_params(filters, sort, page, page_size)
         result = _files_list(params)
-
-        page_ids = [item["id"] for item in result["items"]]
-        status_map = db_operations.get_status_map(conn, user_id, page_ids)
-        labels_map = db_operations.get_labels_map(conn, user_id, page_ids)
-        for item in result["items"]:
-            item["tag_status"] = status_map.get(item["id"])
-            item["labels"] = labels_map.get(item["id"], [])
+        _annotate(conn, user_id, result["items"])
         return result
     finally:
         conn.close()
@@ -209,30 +291,41 @@ def _labels_for_ids(user_id: str, ids: List[str]) -> dict:
 
 
 def export_filtered(user_id: str, file_filters: dict, status: Optional[str] = None,
-                    labels: Optional[List[str]] = None) -> List[dict]:
+                    labels: Optional[List[str]] = None,
+                    search_mode: str = "keyword") -> List[dict]:
     """Export every file matching the given filters (status/labels/text search),
     annotated with the user's tag status and labels.
 
-    Pages through the files service to cover the whole matching set.
+    Keyword mode pages through the files service to cover the whole matching
+    set; meaning mode exports the semantic candidate set (filtered, ranked).
     """
-    conn = get_connection()
-    try:
-        filters, has_candidates = _prepare_filters(conn, user_id, status, labels, file_filters)
-    finally:
-        conn.close()
-    if not has_candidates:
-        return []
+    is_meaning = search_mode == "meaning" and bool((file_filters.get("q") or "").strip())
 
-    items: List[dict] = []
-    page = 1
-    while True:
-        params = _files_params(filters, "id", page, FILES_PAGE_LIMIT)
-        result = _files_list(params)
-        page_items = result["items"]
-        items.extend(page_items)
-        if len(page_items) == 0 or len(items) >= result["total"]:
-            break
-        page += 1
+    if is_meaning:
+        conn = get_connection()
+        try:
+            items = _meaning_candidates(conn, user_id, status, labels, file_filters)
+        finally:
+            conn.close()
+    else:
+        conn = get_connection()
+        try:
+            filters, has_candidates = _prepare_filters(conn, user_id, status, labels, file_filters)
+        finally:
+            conn.close()
+        if not has_candidates:
+            return []
+
+        items = []
+        page = 1
+        while True:
+            params = _files_params(filters, "id", page, FILES_PAGE_LIMIT)
+            result = _files_list(params)
+            page_items = result["items"]
+            items.extend(page_items)
+            if len(page_items) == 0 or len(items) >= result["total"]:
+                break
+            page += 1
 
     ids = [item["id"] for item in items]
     status_by_id = _status_for_ids(user_id, ids)
