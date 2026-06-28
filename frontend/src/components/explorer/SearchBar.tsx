@@ -103,8 +103,7 @@ export default function SearchBar({ value, onSearch, mode, onModeChange }: Searc
       </div>
       {mode === "meaning" && (
         <p className={styles.hint}>
-          Matches images by visual meaning, not exact caption words. Only strong
-          similarities are shown.
+          Type to search by visual meaning; leave empty to browse all images.
         </p>
       )}
     </div>

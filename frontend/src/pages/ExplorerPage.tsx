@@ -103,8 +103,6 @@ export default function ExplorerPage() {
     });
   }
 
-  const meaningWithoutQuery = searchMode === "meaning" && !filters.q.trim();
-
   const params: Omit<GalleryParams, "page"> = {
     page_size: DEFAULT_PAGE_SIZE,
     q: filters.q.trim() || undefined,
@@ -132,7 +130,7 @@ export default function ExplorerPage() {
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
-  } = useInfiniteFiles(params, { enabled: !meaningWithoutQuery });
+  } = useInfiniteFiles(params);
 
   // The CLIP service answers 503 while it is still building its image index on
   // first boot; show a friendlier, retryable message in that case.
@@ -320,12 +318,7 @@ export default function ExplorerPage() {
         </div>
 
         <div className={styles.scrollArea} ref={scrollRef}>
-          {meaningWithoutQuery ? (
-            <div className={styles.state}>
-              Type a phrase above to search images by meaning (e.g. &ldquo;a child
-              playing in water&rdquo;).
-            </div>
-          ) : isLoading ? (
+          {isLoading ? (
             <div className={styles.state}>
               <Spinner /> Loading gallery…
             </div>
