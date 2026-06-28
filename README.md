@@ -169,7 +169,7 @@ All variables have sensible defaults (shown below); override them in `docker-com
 | `USERS_SERVICE_URL` | `http://users:8000` | Direct call target (validate user) |
 | `FILES_SERVICE_URL` | `http://files:8000` | Direct call target (fetch files for the gallery) |
 | `CLIP_SERVICE_URL` | `http://clip:8000` | Direct call target (semantic search for meaning mode) |
-| `CLIP_CANDIDATES` | `500` | Top semantic matches returned before facet/tag filters are applied |
+| `CLIP_CANDIDATES` | `500` | Max semantic matches returned (actual count is decided by score threshold) |
 | `PUBLIC_BASE_URL` | `http://localhost:8080` | Gateway URL used to build absolute image URLs in exports |
 | `TAGS_DEFAULT_PAGE_SIZE` | `50` | Default page size |
 | `TAGS_MAX_PAGE_SIZE` | `200` | Max page size |
@@ -184,6 +184,9 @@ All variables have sensible defaults (shown below); override them in `docker-com
 | `IMAGES_DIR` | `/images` | Image folder to embed (read-only) |
 | `CLIP_EMBEDDINGS_PATH` | `/data/embeddings.npz` | Cached embedding matrix (built once, reused) |
 | `CLIP_MODEL_NAME` | `clip-ViT-B-32` | Open-source CLIP model (baked into the image at build time) |
+| `CLIP_TEXT_PROMPT` | `a photo of {query}` | Prompt template for text queries |
+| `CLIP_MIN_SCORE` | `0.25` | Absolute cosine-similarity floor (semantic match, not relative to dataset size) |
+| `CLIP_SCORE_GAP` | `0.012` | Stop at the first large score drop after the relevant cluster |
 | `CLIP_INDEX_BATCH` | `32` | Images encoded per batch during index build |
 | `CLIP_DEFAULT_LIMIT` | `500` | Default number of matches returned by `/search` |
 | `CLIP_MAX_LIMIT` | `2000` | Max matches per `/search` request |
